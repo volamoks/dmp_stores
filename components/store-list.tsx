@@ -1,16 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Store } from '../types/store';
 import StoreCard from './store-card';
 import { StoreFilters } from './store-filters';
+import { Button } from './ui/button';
 
 interface StoreListProps {
     stores: Store[];
+    pagination: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange: (limit: number) => void;
+    currentPage: number;
+    itemsPerPage: number;
+    isLoading: boolean;
 }
 
-export default function StoreList({ stores }: StoreListProps) {
+const ITEMS_PER_PAGE_OPTIONS = [15, 25, 50, 100];
+
+export default function StoreList({ 
+    stores, 
+    pagination, 
+    onPageChange, 
+    onItemsPerPageChange,
+    currentPage,
+    itemsPerPage,
+    isLoading
+}: StoreListProps) {
     const [filteredStores, setFilteredStores] = useState(stores);
+
+    useEffect(() => {
+        setFilteredStores(stores);
+    }, [stores]);
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -19,7 +45,7 @@ export default function StoreList({ stores }: StoreListProps) {
                     <h2 className="text-2xl font-semibold text-gray-800 mb-2">
                         Магазины
                         <span className="ml-2 text-sm font-normal text-gray-500">
-                            Найдено: {filteredStores.length}
+                            Найдено: {pagination.total}
                         </span>
                     </h2>
                     <p className="text-gray-600 text-sm">
@@ -33,7 +59,12 @@ export default function StoreList({ stores }: StoreListProps) {
                 />
             </div>
 
-            {filteredStores.length === 0 ? (
+            {isLoading ? (
+                <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Загрузка...</p>
+                </div>
+            ) : filteredStores.length === 0 ? (
                 <div className="text-center py-12">
                     <svg
                         className="mx-auto h-12 w-12 text-gray-400"
@@ -55,11 +86,52 @@ export default function StoreList({ stores }: StoreListProps) {
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredStores.map((store) => (
-                        <StoreCard key={store.id} store={store} />
-                    ))}
-                </div>
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                        {filteredStores.map((store) => (
+                            <StoreCard key={store.id} store={store} />
+                        ))}
+                    </div>
+
+                    <div className="flex items-center justify-between bg-white px-4 py-3 border border-gray-200 rounded-lg">
+                        <div className="flex items-center">
+                            <span className="mr-2 text-sm text-gray-700">Показывать по:</span>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+                                className="border border-gray-300 rounded-md text-sm p-1"
+                                disabled={isLoading}
+                            >
+                                {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                                    <option key={option} value={option}>
+                                        {option}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Button
+                                onClick={() => onPageChange(currentPage - 1)}
+                                disabled={currentPage === 1 || isLoading}
+                                variant="outline"
+                                className="px-3 py-1"
+                            >
+                                ←
+                            </Button>
+                            <span className="text-sm text-gray-700">
+                                Страница {currentPage} из {pagination.totalPages}
+                            </span>
+                            <Button
+                                onClick={() => onPageChange(currentPage + 1)}
+                                disabled={currentPage === pagination.totalPages || isLoading}
+                                variant="outline"
+                                className="px-3 py-1"
+                            >
+                                →
+                            </Button>
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );

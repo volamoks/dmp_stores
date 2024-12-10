@@ -6,9 +6,17 @@ interface ButtonProps {
   onClick?: () => void;
   className?: string;
   disabled?: boolean;
+  type?: 'button' | 'submit' | 'reset';
 }
 
-export function Button({ children, variant = 'outline', onClick, className, disabled }: ButtonProps) {
+export function Button({ 
+  children, 
+  variant = 'outline', 
+  onClick, 
+  className, 
+  disabled,
+  type = 'button'
+}: ButtonProps) {
   const buttonClassName = className || '';
   const buttonVariant = variant === 'default' 
     ? 'bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded' 
@@ -20,6 +28,7 @@ export function Button({ children, variant = 'outline', onClick, className, disa
       onClick={onClick} 
       className={`${buttonVariant} ${buttonClassName} ${disabledClass}`}
       disabled={disabled}
+      type={type}
     >
       {children}
     </button>

@@ -1,80 +1,84 @@
-'use client';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import prisma from "@/lib/prisma";
+import StoreListWrapper from "@/components/store-list-wrapper";
+import { Prisma } from "@prisma/client";
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '../lib/auth-context';
-import LoginForm from '../components/login-form';
-import StoreList from '../components/store-list';
-import { Button } from '../components/ui/button';
-import { Store } from '../types/store';
+const ITEMS_PER_PAGE = 15;
 
-export default function Home() {
-    const { user, logout } = useAuth();
-    const [stores, setStores] = useState<Store[]>([]);
-    const [loading, setLoading] = useState(true);
+type StoreWithZones = Prisma.StoreGetPayload<{
+  include: {
+    dmpZones: {
+      include: {
+        bookings: true;
+      };
+    };
+  };
+}>;
 
-    useEffect(() => {
-        async function fetchStores() {
-            try {
-                const response = await fetch('/api/stores');
-                if (!response.ok) throw new Error('Failed to fetch stores');
-                const data = await response.json();
-                setStores(data);
-            } catch (error) {
-                console.error('Error fetching stores:', error);
-            } finally {
-                setLoading(false);
-            }
-        }
+type Status = "Свободен" | "Занят" | "В ожидании";
 
-        if (user) {
-            fetchStores();
-        }
-    }, [user]);
+export default async function Home() {
+  const session = await getServerSession(authOptions);
 
-    return (
-        <main className="min-h-screen bg-gray-50">
-            {user ? (
-                <>
-                    <div className="bg-white border-b border-gray-200">
-                        <div className="container mx-auto px-4 py-4">
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <h1 className="text-xl font-medium text-gray-900">
-                                        Управление ДМП
-                                    </h1>
-                                    <p className="text-sm text-gray-500">
-                                        {user.name}
-                                    </p>
-                                </div>
-                                <Button 
-                                    onClick={logout}
-                                    variant="outline"
-                                    className="text-sm"
-                                >
-                                    Выйти
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {loading ? (
-                        <div className="container mx-auto px-4 py-8">
-                            <div className="animate-pulse space-y-4">
-                                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {[1, 2, 3].map((n) => (
-                                        <div key={n} className="h-48 bg-gray-200 rounded"></div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <StoreList stores={stores} />
-                    )}
-                </>
-            ) : (
-                <LoginForm />
-            )}
-        </main>
-    );
+  if (!session) {
+    redirect("/login");
+  }
+
+  // Fetch initial stores data with bookings included
+  const stores = await prisma.store.findMany({
+    take: ITEMS_PER_PAGE,
+    include: {
+      dmpZones: {
+        include: {
+          bookings: true,
+        },
+      },
+    },
+  });
+
+  // Transform the data to include status
+  const transformedStores = stores.map((store: StoreWithZones) => ({
+    id: store.id,
+    externalId: store.externalId,
+    name: store.name,
+    region: store.region,
+    city: store.city,
+    newFormat: store.newFormat,
+    equipmentFormat: store.equipmentFormat,
+    dmpZones: store.dmpZones.map((zone) => ({
+      id: zone.id,
+      uniqueId: zone.uniqueId,
+      zoneId: zone.zoneId,
+      equipment: zone.equipment,
+      dmpProductNeighboring: zone.dmpProductNeighboring,
+      purpose: zone.purpose,
+      subPurpose: zone.subPurpose,
+      category: zone.category,
+      supplier: zone.supplier,
+      brand: zone.brand,
+      productCategory: zone.productCategory,
+      storeId: zone.storeId,
+      comment: zone.comment,
+      price: zone.price,
+      createdAt: zone.createdAt,
+      updatedAt: zone.updatedAt,
+      status: (zone.bookings.length > 0 ? 'Занят' : 'Свободен') as Status
+    }))
+  }));
+
+  const totalStores = await prisma.store.count();
+
+  return (
+    <main className="flex min-h-screen flex-col items-center p-4 md:p-24">
+      <div className="w-full max-w-7xl space-y-8">
+        <StoreListWrapper 
+          initialStores={transformedStores}
+          totalStores={totalStores}
+          itemsPerPage={ITEMS_PER_PAGE}
+        />
+      </div>
+    </main>
+  );
 }
