@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Status {
+  OCCUPIED @map("Занят")
+  VACANT   @map("Свободен")
+}
+
+enum Category {
+  FOOD     @map("Food")
+  NON_FOOD @map("Non-Food")
+}
+
+model Store {
+  id              Int      @id @default(autoincrement())
+  externalId      String   @map("external_id")
+  name            String   @map("market")
+  region          String
+  city            String
+  newFormat       String   @map("new_format")
+  equipmentFormat String   @map("equipment_format")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  dmpZones        Zone[]
+
+  @@map("stores")
+}
+
+model Zone {
+  id                    Int       @id @default(autoincrement())
+  uniqueId              String    @unique @map("unique_id")
+  zoneId                String    @map("zone_id")
+  equipment             String
+  dmpProductNeighboring String    @map("dmp_product_neighboring")
+  purpose               String
+  subPurpose            String    @map("sub_purpose")
+  category              Category
+  supplier              String
+  brand                 String
+  productCategory       String    @map("product_category")
+  status                Status
+  storeId               Int
+  comment               String?
+  createdAt             DateTime  @default(now())
+  price                 Float
+  updatedAt             DateTime  @updatedAt
+  bookings              Booking[]
+  store                 Store     @relation(fields: [storeId], references: [id])
+
+  @@map("zones")
+}
+
+model Booking {
+  id         Int      @id @default(autoincrement())
+  zoneId     Int
+  userId     Int
+  startDate  DateTime
+  endDate    DateTime
+  totalPrice Float
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id])
+  zone       Zone     @relation(fields: [zoneId], references: [id])
+
+  @@map("bookings")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  phone     String?
+  role      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+
+  @@map("users")
+}
+
+model Pricing {
+  id         Int      @id @default(autoincrement())
+  category   String
+  basePrice  Float
+  multiplier Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("pricing")
+}
+
+model SeasonFactor {
+  id         Int      @id @default(autoincrement())
+  name       String
+  startDate  DateTime
+  endDate    DateTime
+  multiplier Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("season_factors")
+}
